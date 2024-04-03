@@ -47,8 +47,12 @@ type JsonRpcTcpClient (host: string, port: uint32) =
     member __.Request<'TResult> (method: string) (args: array<obj>) (timeout: TimeSpan): Async<'TResult> = async {
         use tcpClient = new TcpClient(host, int port)
         
-        let rpcClient : JsonRpc = JsonRpc.Attach(tcpClient.GetStream())
+        use rpcClient : JsonRpc = JsonRpc.Attach(tcpClient.GetStream())
 
-        let! res = rpcClient.InvokeAsync<'TResult>(method, args) |> Async.AwaitTask
+        let! res = 
+            rpcClient.InvokeAsync<'TResult>(method, args) 
+            |> Async.AwaitTask
+            |> withTimeout timeout
+            |> unwrapTimeout "RPC call timed out"
         return res
     }

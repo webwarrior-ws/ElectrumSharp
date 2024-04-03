@@ -6,7 +6,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Library.fs" />
+    <Compile Include="JsonRpcTcpClient.fs" />
+    <Compile Include="StratumClient.fs" />
+    <Compile Include="ElectrumClient.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Fsdk" Version="0.6.0--date20230530-1155.git-3bb8d08" />
+    <PackageReference Include="StreamJsonRpc" Version="2.17.11" />
   </ItemGroup>
 
 </Project>
