@@ -50,13 +50,13 @@ type StratumClient (jsonRpcClient: JsonRpcTcpClient, timeout: TimeSpan) =
         | exn -> raise(Exception("Electrum Server's version disliked by .NET Version class: " + versionStr, exn))
 
     member self.ServerVersion (clientName: string) (protocolVersion: Version) : Async<Version> = async {
-        let! serverProtocolVersion = 
-            jsonRpcClient.Request<string> 
+        let! serverProtocolVersionResponse = 
+            jsonRpcClient.Request<array<string>> 
                 "server.version" 
                 [| clientName; protocolVersion.ToString() |] 
                 timeout
 
-        return StratumClient.CreateVersion(serverProtocolVersion)
+        return StratumClient.CreateVersion(serverProtocolVersionResponse.[1])
     }
 
     member self.BlockchainScriptHashListUnspent address: Async<array<BlockchainScriptHashListUnspentInnerResult>> =
