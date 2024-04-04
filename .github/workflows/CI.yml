@@ -7,6 +7,8 @@ jobs:
     runs-on: ubuntu-22.04
     container:
       image: "ubuntu:22.04"
+    env:
+      BASE_VERSION: 0.0.0.1
 
     steps:
     - uses: actions/checkout@v1
@@ -27,3 +29,18 @@ jobs:
         apt install --yes --no-install-recommends dotnet6
     - name: Build
       run: dotnet build
+    
+    - name: Pack
+      run: |
+        VERSION="$(dotnet fsi nugetPreRelease.fsx $BASE_VERSION)"
+        echo $VERSION
+
+        # use -p instead of --property because otherwise dotnet pack will fail with
+        # error MSB1025: An internal failure occurred while running MSBuild.
+        # Microsoft.Build.Shared.InternalErrorException: MSB0001: Internal MSBuild Error: The switch name extracted from either 
+        # the partially or completely unquoted arg should be the same.
+        dotnet pack \
+          --configuration Release \
+          --output dist \
+          -p:TargetFrameworks=netstandard2.0 \
+          -p:Version="$VERSION"
