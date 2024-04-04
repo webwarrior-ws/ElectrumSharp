@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src\ElectrumSharp\ElectrumSharp.fsproj" />
+    <ProjectReference Include="..\ElectrumSharp\ElectrumSharp.fsproj" />
   </ItemGroup>
 
 </Project>

@@ -5,7 +5,7 @@ VisualStudioVersion = 17.9.34723.18
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "ElectrumSharp", "src\ElectrumSharp\ElectrumSharp.fsproj", "{72A727D6-D871-4E4B-92A9-A5A728A27B14}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TestingApp", "TestingApp\TestingApp.fsproj", "{1C21ACA6-79B8-4FB5-B8F5-F5A9024F97CC}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TestingApp", "src\TestingApp\TestingApp.fsproj", "{1C21ACA6-79B8-4FB5-B8F5-F5A9024F97CC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
