@@ -7,6 +7,8 @@ jobs:
     runs-on: ubuntu-22.04
     container:
       image: "ubuntu:22.04"
+    env:
+      BASE_VERSION: 0.0.0.1
 
     steps:
     - uses: actions/checkout@v1
@@ -27,3 +29,18 @@ jobs:
         apt install --yes --no-install-recommends dotnet6
     - name: Build
       run: dotnet build
+    
+    - name: Pack
+      run: |
+        VERSION="$(dotnet fsi nugetPreRelease.fsx $BASE_VERSION)"
+        echo $VERSION
+
+        dotnet pack \
+          --configuration Release \
+          --output dist \
+          --property:IncludeBuildOutput=false \
+          --property:IncludeContentInPack=false \
+          --property:TargetFrameworks=netstandard2.0 \
+          --property:Version="$VERSION"
+          
+        ls dist/*.nupkg
