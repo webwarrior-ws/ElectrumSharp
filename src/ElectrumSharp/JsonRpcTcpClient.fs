@@ -41,6 +41,17 @@ module Helpers =
             return res
     }
 
+type PascalCaseToSnakeCaseNamingPolicy() = 
+    inherit Json.JsonNamingPolicy()
+
+    static let capitalizedWordRegex = Text.RegularExpressions.Regex "[A-Z][a-z0-9]*"
+
+    override self.ConvertName name =
+        let evaluator (regexMatch: RegularExpressions.Match) =
+            let lowercase = regexMatch.Value.ToLower()
+            if regexMatch.Index = 0 then lowercase else "_" + lowercase
+        capitalizedWordRegex.Replace(name, Text.RegularExpressions.MatchEvaluator evaluator)
+
 type JsonRpcTcpClient (host: string, port: uint32) =
     member __.Host with get() = host
 
@@ -51,6 +62,7 @@ type JsonRpcTcpClient (host: string, port: uint32) =
         let networkStream = tcpClient.GetStream()
         use formatter = new SystemTextJsonFormatter()
         use handler = new NewLineDelimitedMessageHandler(networkStream, networkStream, formatter)
+        formatter.JsonSerializerOptions.PropertyNamingPolicy <- PascalCaseToSnakeCaseNamingPolicy()
         use rpcClient = new JsonRpc(handler)
 
         let disconnectHandler =
