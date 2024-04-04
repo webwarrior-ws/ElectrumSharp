@@ -24,6 +24,6 @@ jobs:
         # The SSL connection could not be established, see inner exception.
         # The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot
         apt install --yes --no-install-recommends ca-certificates
-        apt install --yes --no-install-recommends dotnet7
+        apt install --yes --no-install-recommends dotnet6
     - name: Build
       run: dotnet build
