@@ -1,41 +1,27 @@
 ﻿namespace ElectrumSharp
 
 open System
-open System.ComponentModel
 
-type BlockchainScriptHashGetBalanceInnerResult =
+type BlockchainScriptHashGetBalanceResult =
     {
-        Confirmed: Int64;
-        Unconfirmed: Int64;
+        Confirmed: Int64
+        Unconfirmed: Int64
     }
 
-type BlockchainScriptHashListUnspentInnerResult =
+type BlockchainScriptHashListUnspentResult =
     {
-        TxHash: string;
-        TxPos: int;
-        Value: Int64;
-        Height: Int64;
+        TxHash: string
+        TxPos: int
+        Value: Int64
+        Height: Int64
     }
-
-type RpcErrorCode =
-    // see https://gitlab.com/nblockchain/geewallet/issues/110
-    | ExcessiveResourceUsage = -101
-
-    // see https://gitlab.com/nblockchain/geewallet/issues/117
-    | ServerBusy = -102
-
-    // see git commit msg of 0aba03a8291daa526fde888d0c02a789abe411f2
-    | InternalError = -32603
-
-    // see https://gitlab.com/nblockchain/geewallet/issues/112
-    | UnknownMethod = -32601
 
 type StratumClient (jsonRpcClient: JsonRpcTcpClient, timeout: TimeSpan) =
 
-    member self.BlockchainScriptHashGetBalance address: Async<BlockchainScriptHashGetBalanceInnerResult> =
-        jsonRpcClient.Request<BlockchainScriptHashGetBalanceInnerResult> 
+    member self.BlockchainScriptHashGetBalance (scriptHash: string): Async<BlockchainScriptHashGetBalanceResult> =
+        jsonRpcClient.Request<BlockchainScriptHashGetBalanceResult> 
             "blockchain.scripthash.get_balance" 
-            [| address |] 
+            [| scriptHash |] 
             timeout
 
     static member private CreateVersion(versionStr: string): Version =
@@ -59,10 +45,10 @@ type StratumClient (jsonRpcClient: JsonRpcTcpClient, timeout: TimeSpan) =
         return StratumClient.CreateVersion(serverProtocolVersionResponse.[1])
     }
 
-    member self.BlockchainScriptHashListUnspent address: Async<array<BlockchainScriptHashListUnspentInnerResult>> =
-        jsonRpcClient.Request<array<BlockchainScriptHashListUnspentInnerResult>> 
+    member self.BlockchainScriptHashListUnspent (scriptHash: string): Async<array<BlockchainScriptHashListUnspentResult>> =
+        jsonRpcClient.Request<array<BlockchainScriptHashListUnspentResult>> 
             "blockchain.scripthash.listunspent" 
-            [| address |] 
+            [| scriptHash |] 
             timeout
 
     member self.BlockchainTransactionGet txHash: Async<string> =

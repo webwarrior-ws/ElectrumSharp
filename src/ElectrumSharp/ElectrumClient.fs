@@ -25,7 +25,7 @@ module ElectrumClient =
         //    [ see https://www.youtube.com/watch?v=hjYCXOyDy7Y&feature=youtu.be&t=1171 for more information ]
         // * -> although that would be fixing only half of the problem, we also need proof of completeness
         let! stratumClient = stratumServer
-        let rec innerGetBalances (scriptHashes: List<string>) (result: BlockchainScriptHashGetBalanceInnerResult) =
+        let rec innerGetBalances (scriptHashes: List<string>) (result: BlockchainScriptHashGetBalanceResult) =
             async {
                 match scriptHashes with
                 | scriptHash::otherScriptHashes ->

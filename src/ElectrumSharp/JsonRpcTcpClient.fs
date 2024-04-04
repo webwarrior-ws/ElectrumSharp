@@ -44,7 +44,7 @@ module Helpers =
 type PascalCaseToSnakeCaseNamingPolicy() = 
     inherit Json.JsonNamingPolicy()
 
-    static let capitalizedWordRegex = Text.RegularExpressions.Regex "[A-Z][a-z0-9]*"
+    static let capitalizedWordRegex = RegularExpressions.Regex "[A-Z][a-z0-9]*"
 
     override self.ConvertName name =
         let evaluator (regexMatch: RegularExpressions.Match) =
