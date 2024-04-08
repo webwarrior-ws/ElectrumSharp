@@ -35,7 +35,7 @@ jobs:
         VERSION="$(dotnet fsi nugetPreRelease.fsx $BASE_VERSION)"
         echo $VERSION
 
-        dotnet pack \
+        dotnet pack src/ElectrumSharp/ElectrumSharp.fsproj \
           --configuration Release \
           --output dist \
           --property:IncludeBuildOutput=false \
