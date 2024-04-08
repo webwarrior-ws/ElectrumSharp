@@ -51,14 +51,14 @@ type StratumClient (jsonRpcClient: JsonRpcTcpClient, timeout: TimeSpan) =
             [| scriptHash |] 
             timeout
 
-    member self.BlockchainTransactionGet txHash: Async<string> =
+    member self.BlockchainTransactionGet (txHash: string): Async<string> =
         jsonRpcClient.Request<string> 
             "blockchain.transaction.get" 
             [| txHash |] 
             timeout
 
     // DON'T DELETE, used in external projects
-    member self.BlockchainTransactionIdFromPos height txPos: Async<string> =
+    member self.BlockchainTransactionIdFromPos (height: uint32) (txPos: uint32): Async<string> =
         jsonRpcClient.Request<string> 
             "blockchain.transaction.id_from_pos" 
             [| height :> obj; txPos :> obj |] 
@@ -72,7 +72,7 @@ type StratumClient (jsonRpcClient: JsonRpcTcpClient, timeout: TimeSpan) =
             [| numBlocksTarget |] 
             timeout
 
-    member self.BlockchainTransactionBroadcast txInHex: Async<string> =
+    member self.BlockchainTransactionBroadcast (txInHex: string): Async<string> =
         jsonRpcClient.Request<string> 
             "blockchain.transaction.broadcast" 
             [| txInHex |] 
