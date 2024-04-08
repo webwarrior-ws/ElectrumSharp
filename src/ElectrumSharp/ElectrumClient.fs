@@ -2,12 +2,52 @@
 
 open System
 
+open StreamJsonRpc
+
+type IncompatibleProtocolException(message) =
+    inherit Exception(message)
+
+type ServerTooNewException(message) =
+    inherit IncompatibleProtocolException(message)
+
+type ServerTooOldException(message) =
+    inherit IncompatibleProtocolException(message)
+
 module ElectrumClient =
     
-    let GetClient (fqdn: string) (port: uint32) (timeout: TimeSpan): StratumClient =
+    let GetClient (fqdn: string) (port: uint32) (timeout: TimeSpan) (ourClientName: string): Async<StratumClient> =
         let jsonRpcClient = new JsonRpcTcpClient(fqdn, port)
         let stratumClient = new StratumClient(jsonRpcClient, timeout)
-        stratumClient
+
+        // last version of the protocol [1] as of electrum's source code [2] at the time of
+        // writing this... actually this changes relatively rarely (one of the last changes
+        // was for 2.4 version [3] (changes documented here[4])
+        // [1] https://electrumx-spesmilo.readthedocs.io/en/latest/protocol.html
+        // [2] https://github.com/spesmilo/electrum/blob/master/lib/version.py
+        // [3] https://github.com/spesmilo/electrum/commit/118052d81597eff3eb636d242eacdd0437dabdd6
+        // [4] https://electrumx-spesmilo.readthedocs.io/en/latest/protocol-changes.html
+        let PROTOCOL_VERSION_SUPPORTED = Version "1.4"
+
+        async {
+            let! versionSupportedByServer =
+                try
+                    stratumClient.ServerVersion ourClientName PROTOCOL_VERSION_SUPPORTED
+                with
+                | :? RemoteInvocationException as ex ->
+                    if (ex.ErrorCode = 1 && ex.Message.StartsWith "unsupported protocol version" &&
+                                            ex.Message.EndsWith (PROTOCOL_VERSION_SUPPORTED.ToString())) then
+
+                        // FIXME: even if this ex is already handled to ignore the server, we should report to sentry as WARN
+                        raise <| ServerTooNewException(sprintf "Version of server rejects our client version (%s)"
+                                                               (PROTOCOL_VERSION_SUPPORTED.ToString()))
+                    else
+                        reraise()
+            if versionSupportedByServer < PROTOCOL_VERSION_SUPPORTED then
+                raise (ServerTooOldException (sprintf "Version of server is older (%s) than the client (%s)"
+                                                      (versionSupportedByServer.ToString())
+                                                      (PROTOCOL_VERSION_SUPPORTED.ToString())))
+            return stratumClient
+        }
 
     let GetBalances (scriptHashes: List<string>) (stratumClient: Async<StratumClient>) = async {
         // FIXME: we should rather implement this method in terms of:
