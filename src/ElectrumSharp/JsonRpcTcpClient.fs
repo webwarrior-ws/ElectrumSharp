@@ -55,7 +55,9 @@ type PascalCaseToSnakeCaseNamingPolicy() =
 type JsonRpcTcpClient (host: string, port: uint32) =
     member __.Host with get() = host
 
-    member __.Request<'TResult> (method: string) (args: array<obj>) (timeout: TimeSpan): Async<'TResult> = async {
+    member val Logger: string -> unit = Console.WriteLine with get, set
+
+    member self.Request<'TResult> (method: string) (args: array<obj>) (timeout: TimeSpan): Async<'TResult> = async {
         use tcpClient = new TcpClient()
         do! tcpClient.ConnectAsync(host, int port) |> Async.AwaitTask
 
@@ -68,9 +70,10 @@ type JsonRpcTcpClient (host: string, port: uint32) =
         let disconnectHandler =
             new EventHandler<JsonRpcDisconnectedEventArgs>(
                 fun  _ disconnectedEventArgs ->
-                    printfn "Disconnected (Reason=%A): %s" 
+                    sprintf "Disconnected (Reason=%A): %s" 
                         disconnectedEventArgs.Reason 
-                        disconnectedEventArgs.Description)
+                        disconnectedEventArgs.Description
+                    |> self.Logger)
 
         rpcClient.Disconnected.AddHandler disconnectHandler
 
