@@ -37,6 +37,10 @@ jobs:
 
         dotnet pack \
           --configuration Release \
-          --output dist
+          --output dist \
+          -p:IncludeBuildOutput=false \
+          -p:IncludeContentInPack=false \
+          -p:TargetFrameworks=netstandard2.0 \
+          -p:Version="$VERSION"
           
         ls dist/*.nupkg
