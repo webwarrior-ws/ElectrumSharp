@@ -6,7 +6,7 @@ let serverAddress = "electrum.ltc.xurious.com"
 let serverPort = 50001u
 let timeout = TimeSpan.FromSeconds 3.0
 
-let stratumClient = ElectrumClient.StratumServer serverAddress serverPort timeout
+let stratumClient = ElectrumClient.GetClient serverAddress serverPort timeout
 
 async {
     let! version = stratumClient.ServerVersion "geewallet" (Version "1.4")

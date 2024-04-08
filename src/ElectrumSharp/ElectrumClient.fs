@@ -4,12 +4,12 @@ open System
 
 module ElectrumClient =
     
-    let StratumServer (fqdn: string) (port: uint32) (timeout: TimeSpan): StratumClient =
+    let GetClient (fqdn: string) (port: uint32) (timeout: TimeSpan): StratumClient =
         let jsonRpcClient = new JsonRpcTcpClient(fqdn, port)
         let stratumClient = new StratumClient(jsonRpcClient, timeout)
         stratumClient
 
-    let GetBalances (scriptHashes: List<string>) (stratumServer: Async<StratumClient>) = async {
+    let GetBalances (scriptHashes: List<string>) (stratumClient: Async<StratumClient>) = async {
         // FIXME: we should rather implement this method in terms of:
         //        - querying all unspent transaction outputs (X) -> block heights included
         //        - querying transaction history (Y) -> block heights included
@@ -24,7 +24,7 @@ module ElectrumClient =
         //    integrity (in a similar fashion as Electrum Wallet client already does), to not have to trust servers*
         //    [ see https://www.youtube.com/watch?v=hjYCXOyDy7Y&feature=youtu.be&t=1171 for more information ]
         // * -> although that would be fixing only half of the problem, we also need proof of completeness
-        let! stratumClient = stratumServer
+        let! stratumClient = stratumClient
         let rec innerGetBalances (scriptHashes: List<string>) (result: BlockchainScriptHashGetBalanceResult) =
             async {
                 match scriptHashes with
@@ -52,34 +52,34 @@ module ElectrumClient =
                 }
     }
 
-    let GetUnspentTransactionOutputs scriptHash (stratumServer: Async<StratumClient>) = async {
-        let! stratumClient = stratumServer
+    let GetUnspentTransactionOutputs scriptHash (stratumClient: Async<StratumClient>) = async {
+        let! stratumClient = stratumClient
         let! unspentListResult = stratumClient.BlockchainScriptHashListUnspent scriptHash
         return unspentListResult
     }
 
-    let GetBlockchainTransaction txHash (stratumServer: Async<StratumClient>) = async {
-        let! stratumClient = stratumServer
+    let GetBlockchainTransaction txHash (stratumClient: Async<StratumClient>) = async {
+        let! stratumClient = stratumClient
         let! blockchainTransactionResult = stratumClient.BlockchainTransactionGet txHash
         return blockchainTransactionResult
     }
 
     // DON'T DELETE, used in external projects
-    let GetBlockchainTransactionIdFromPos (height: UInt32) (txPos: UInt32) (stratumServer: Async<StratumClient>) = async {
-        let! stratumClient = stratumServer
+    let GetBlockchainTransactionIdFromPos (height: UInt32) (txPos: UInt32) (stratumClient: Async<StratumClient>) = async {
+        let! stratumClient = stratumClient
         let! blockchainTransactionResult = stratumClient.BlockchainTransactionIdFromPos height txPos
         return blockchainTransactionResult
     }
 
-    let EstimateFee (numBlocksTarget: int) (stratumServer: Async<StratumClient>): Async<decimal> = async {
-        let! stratumClient = stratumServer
+    let EstimateFee (numBlocksTarget: int) (stratumClient: Async<StratumClient>): Async<decimal> = async {
+        let! stratumClient = stratumClient
         let! estimateFeeResult = stratumClient.BlockchainEstimateFee numBlocksTarget
         let amountPerKB = estimateFeeResult
         return amountPerKB
     }
 
-    let BroadcastTransaction (transactionInHex: string) (stratumServer: Async<StratumClient>) = async {
-        let! stratumClient = stratumServer
+    let BroadcastTransaction (transactionInHex: string) (stratumClient: Async<StratumClient>) = async {
+        let! stratumClient = stratumClient
         let! blockchainTransactionBroadcastResult = stratumClient.BlockchainTransactionBroadcast transactionInHex
         return blockchainTransactionBroadcastResult
     }
