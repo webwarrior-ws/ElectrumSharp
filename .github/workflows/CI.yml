@@ -35,12 +35,8 @@ jobs:
         VERSION="$(dotnet fsi nugetPreRelease.fsx $BASE_VERSION)"
         echo $VERSION
 
-        dotnet pack src/ElectrumSharp/ElectrumSharp.fsproj \
+        dotnet pack \
           --configuration Release \
-          --output dist \
-          --property:IncludeBuildOutput=false \
-          --property:IncludeContentInPack=false \
-          --property:TargetFrameworks=netstandard2.0 \
-          --property:Version="$VERSION"
+          --output dist
           
         ls dist/*.nupkg
