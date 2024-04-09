@@ -2,125 +2,78 @@
 
 open System
 
-open StreamJsonRpc
-
-type IncompatibleProtocolException(message) =
-    inherit Exception(message)
-
-type ServerTooNewException(message) =
-    inherit IncompatibleProtocolException(message)
-
-type ServerTooOldException(message) =
-    inherit IncompatibleProtocolException(message)
-
-module ElectrumClient =
-    
-    let GetClient (fqdn: string) (port: uint32) (timeout: TimeSpan) (ourClientName: string): Async<StratumClient> =
-        let jsonRpcClient = new JsonRpcTcpClient(fqdn, port)
-        let stratumClient = new StratumClient(jsonRpcClient, timeout)
-
-        // last version of the protocol [1] as of electrum's source code [2] at the time of
-        // writing this... actually this changes relatively rarely (one of the last changes
-        // was for 2.4 version [3] (changes documented here[4])
-        // [1] https://electrumx-spesmilo.readthedocs.io/en/latest/protocol.html
-        // [2] https://github.com/spesmilo/electrum/blob/master/lib/version.py
-        // [3] https://github.com/spesmilo/electrum/commit/118052d81597eff3eb636d242eacdd0437dabdd6
-        // [4] https://electrumx-spesmilo.readthedocs.io/en/latest/protocol-changes.html
-        let PROTOCOL_VERSION_SUPPORTED = Version "1.4"
-
-        async {
-            let! versionSupportedByServer =
-                try
-                    stratumClient.ServerVersion ourClientName PROTOCOL_VERSION_SUPPORTED
-                with
-                | :? RemoteInvocationException as ex ->
-                    if (ex.ErrorCode = 1 && ex.Message.StartsWith "unsupported protocol version" &&
-                                            ex.Message.EndsWith (PROTOCOL_VERSION_SUPPORTED.ToString())) then
-
-                        // FIXME: even if this ex is already handled to ignore the server, we should report to sentry as WARN
-                        raise <| ServerTooNewException(sprintf "Version of server rejects our client version (%s)"
-                                                               (PROTOCOL_VERSION_SUPPORTED.ToString()))
-                    else
-                        reraise()
-            if versionSupportedByServer < PROTOCOL_VERSION_SUPPORTED then
-                raise (ServerTooOldException (sprintf "Version of server is older (%s) than the client (%s)"
-                                                      (versionSupportedByServer.ToString())
-                                                      (PROTOCOL_VERSION_SUPPORTED.ToString())))
-            return stratumClient
-        }
-
-    let GetBalances (scriptHashes: List<string>) (stratumClient: Async<StratumClient>) = async {
-        // FIXME: we should rather implement this method in terms of:
-        //        - querying all unspent transaction outputs (X) -> block heights included
-        //        - querying transaction history (Y) -> block heights included
-        //        - check the difference between X and Y (e.g. Y - X = Z)
-        //        - query details of each element in Z to see their block heights
-        //        - query the current blockheight (H) -> pick the highest among all servers queried
-        //        -> having H, we now know which elements of X, Y, and Z are confirmed or not
-        // Doing it this way has two advantages:
-        // 1) We can configure GWallet with a number of confirmations to consider some balance confirmed (instead
-        //    of trusting what "confirmed" means from the point of view of the Electrum Server)
-        // 2) and most importantly: we could verify each of the transactions supplied in X, Y, Z to verify their
-        //    integrity (in a similar fashion as Electrum Wallet client already does), to not have to trust servers*
-        //    [ see https://www.youtube.com/watch?v=hjYCXOyDy7Y&feature=youtu.be&t=1171 for more information ]
-        // * -> although that would be fixing only half of the problem, we also need proof of completeness
-        let! stratumClient = stratumClient
-        let rec innerGetBalances (scriptHashes: List<string>) (result: BlockchainScriptHashGetBalanceResult) =
-            async {
-                match scriptHashes with
-                | scriptHash::otherScriptHashes ->
-                    let! balanceHash = stratumClient.BlockchainScriptHashGetBalance scriptHash
-                    
-                    return! 
-                        innerGetBalances
-                            otherScriptHashes
-                            {
-                                result with
-                                    Unconfirmed = result.Unconfirmed + balanceHash.Unconfirmed
-                                    Confirmed = result.Confirmed + balanceHash.Confirmed
-                            }
-                | [] ->
-                    return result
-            }
-
-        return!
-            innerGetBalances
-                scriptHashes
-                {
-                    Unconfirmed = 0L
-                    Confirmed = 0L
-                }
+type BlockchainScriptHashGetBalanceResult =
+    {
+        Confirmed: Int64
+        Unconfirmed: Int64
     }
 
-    let GetUnspentTransactionOutputs scriptHash (stratumClient: Async<StratumClient>) = async {
-        let! stratumClient = stratumClient
-        let! unspentListResult = stratumClient.BlockchainScriptHashListUnspent scriptHash
-        return unspentListResult
+type BlockchainScriptHashListUnspentResult =
+    {
+        TxHash: string
+        TxPos: int
+        Value: Int64
+        Height: Int64
     }
 
-    let GetBlockchainTransaction txHash (stratumClient: Async<StratumClient>) = async {
-        let! stratumClient = stratumClient
-        let! blockchainTransactionResult = stratumClient.BlockchainTransactionGet txHash
-        return blockchainTransactionResult
+type ElectrumClient (jsonRpcClient: JsonRpcTcpClient, timeout: TimeSpan) =
+
+    member self.BlockchainScriptHashGetBalance (scriptHash: string): Async<BlockchainScriptHashGetBalanceResult> =
+        jsonRpcClient.Request<BlockchainScriptHashGetBalanceResult> 
+            "blockchain.scripthash.get_balance" 
+            [| scriptHash |] 
+            timeout
+
+    static member private CreateVersion(versionStr: string): Version =
+        let correctedVersion =
+            if (versionStr.EndsWith("+")) then
+                versionStr.Substring(0, versionStr.Length - 1)
+            else
+                versionStr
+        try
+            Version(correctedVersion)
+        with
+        | exn -> raise(Exception("Electrum Server's version disliked by .NET Version class: " + versionStr, exn))
+
+    member self.ServerVersion (clientName: string) (protocolVersion: Version) : Async<Version> = async {
+        let! serverProtocolVersionResponse = 
+            jsonRpcClient.Request<array<string>> 
+                "server.version" 
+                [| clientName; protocolVersion.ToString() |] 
+                timeout
+
+        return ElectrumClient.CreateVersion(serverProtocolVersionResponse.[1])
     }
+
+    member self.BlockchainScriptHashListUnspent (scriptHash: string): Async<array<BlockchainScriptHashListUnspentResult>> =
+        jsonRpcClient.Request<array<BlockchainScriptHashListUnspentResult>> 
+            "blockchain.scripthash.listunspent" 
+            [| scriptHash |] 
+            timeout
+
+    member self.BlockchainTransactionGet (txHash: string): Async<string> =
+        jsonRpcClient.Request<string> 
+            "blockchain.transaction.get" 
+            [| txHash |] 
+            timeout
 
     // DON'T DELETE, used in external projects
-    let GetBlockchainTransactionIdFromPos (height: UInt32) (txPos: UInt32) (stratumClient: Async<StratumClient>) = async {
-        let! stratumClient = stratumClient
-        let! blockchainTransactionResult = stratumClient.BlockchainTransactionIdFromPos height txPos
-        return blockchainTransactionResult
-    }
+    member self.BlockchainTransactionIdFromPos (height: uint32) (txPos: uint32): Async<string> =
+        jsonRpcClient.Request<string> 
+            "blockchain.transaction.id_from_pos" 
+            [| height :> obj; txPos :> obj |] 
+            timeout
 
-    let EstimateFee (numBlocksTarget: int) (stratumClient: Async<StratumClient>): Async<decimal> = async {
-        let! stratumClient = stratumClient
-        let! estimateFeeResult = stratumClient.BlockchainEstimateFee numBlocksTarget
-        let amountPerKB = estimateFeeResult
-        return amountPerKB
-    }
+    // NOTE: despite Electrum-X official docs claiming that this method is deprecated... it's not! go read the official
+    //       non-shitcoin forked version of the docs: https://electrumx-spesmilo.readthedocs.io/en/latest/protocol-methods.html#blockchain-estimatefee
+    member self.BlockchainEstimateFee (numBlocksTarget: int): Async<decimal> =
+        jsonRpcClient.Request<decimal> 
+            "blockchain.estimatefee" 
+            [| numBlocksTarget |] 
+            timeout
 
-    let BroadcastTransaction (transactionInHex: string) (stratumClient: Async<StratumClient>) = async {
-        let! stratumClient = stratumClient
-        let! blockchainTransactionBroadcastResult = stratumClient.BlockchainTransactionBroadcast transactionInHex
-        return blockchainTransactionBroadcastResult
-    }
-
+    member self.BlockchainTransactionBroadcast (txInHex: string): Async<string> =
+        jsonRpcClient.Request<string> 
+            "blockchain.transaction.broadcast" 
+            [| txInHex |] 
+            timeout

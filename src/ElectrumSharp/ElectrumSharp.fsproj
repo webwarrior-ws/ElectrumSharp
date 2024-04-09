@@ -7,8 +7,8 @@
 
   <ItemGroup>
     <Compile Include="JsonRpcTcpClient.fs" />
-    <Compile Include="StratumClient.fs" />
     <Compile Include="ElectrumClient.fs" />
+    <Compile Include="Electrum.fs" />
   </ItemGroup>
 
   <ItemGroup>
