@@ -63,10 +63,13 @@ type JsonRpcTcpClient (host: string, port: uint32) =
 
             match response with
             | Some value -> return value
-            | None -> return raise (TimeoutException "RPC call timed out")
+            | None -> return raise (CommunticationFailedException "RPC call timed out")
         with
-        | :? RemoteRpcException as exn ->
-            return raise <| CommunticationFailedException(exn.Message, exn)
-        | :? SocketException as exn ->
-            return raise <| CommunticationFailedException(exn.Message, exn)
+        | exn ->
+            match Fsdk.FSharpUtil.FindException<RemoteRpcException> exn with
+            | Some remoteRpcExn -> return raise <| CommunticationFailedException(remoteRpcExn.Message, remoteRpcExn)
+            | None -> 
+                match Fsdk.FSharpUtil.FindException<SocketException> exn with
+                | Some socketExn -> return raise <| CommunticationFailedException(socketExn.Message, socketExn)
+                | None -> return raise exn
     }
