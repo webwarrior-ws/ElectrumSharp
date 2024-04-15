@@ -5,7 +5,7 @@ open System
 open StreamJsonRpc
 
 type IncompatibleProtocolException(message) =
-    inherit Exception(message)
+    inherit CommunticationFailedException(message)
 
 type ServerTooNewException(message) =
     inherit IncompatibleProtocolException(message)
@@ -18,7 +18,7 @@ module Electrum =
     let CreateClient (fqdn: string) (port: uint32) (timeout: TimeSpan) (walletName: string): Async<ElectrumClient> =
         let jsonRpcClient = new JsonRpcTcpClient(fqdn, port)
         let stratumClient = new ElectrumClient(jsonRpcClient, timeout)
-
+        
         // last version of the protocol [1] as of electrum's source code [2] at the time of
         // writing this... actually this changes relatively rarely (one of the last changes
         // was for 2.4 version [3] (changes documented here[4])

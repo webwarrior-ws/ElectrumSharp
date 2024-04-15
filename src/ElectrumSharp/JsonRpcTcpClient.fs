@@ -1,25 +1,12 @@
 ﻿namespace ElectrumSharp
 
 open System
-open System.Net
 open System.Net.Sockets
 open System.Runtime.Serialization
 open System.Text
 
 open Fsdk.FSharpUtil
 open StreamJsonRpc
-
-[<AutoOpen>]
-module Helpers =
-    let unwrapTimeout timeoutMsg job = async {
-        let! maybeRes = job
-        match maybeRes with
-        | None ->
-            let timeoutEx = TimeoutException(timeoutMsg)
-            return raise timeoutEx
-        | Some res ->
-            return res
-    }
 
 type PascalCaseToSnakeCaseNamingPolicy() = 
     inherit Json.JsonNamingPolicy()
@@ -31,6 +18,13 @@ type PascalCaseToSnakeCaseNamingPolicy() =
             let lowercase = regexMatch.Value.ToLower()
             if regexMatch.Index = 0 then lowercase else "_" + lowercase
         capitalizedWordRegex.Replace(name, Text.RegularExpressions.MatchEvaluator evaluator)
+
+type CommunticationFailedException =
+    inherit Exception
+
+    new(message: string, innerException: Exception) = { inherit Exception(message, innerException) }
+    new(message: string) = { inherit Exception(message) }
+    new() = { inherit Exception() }
 
 type JsonRpcTcpClient (host: string, port: uint32) =
     member __.Host with get() = host
@@ -55,17 +49,24 @@ type JsonRpcTcpClient (host: string, port: uint32) =
                         disconnectedEventArgs.Description
                     |> self.Logger)
 
-        rpcClient.Disconnected.AddHandler disconnectHandler
+        try
+            rpcClient.Disconnected.AddHandler disconnectHandler
 
-        rpcClient.StartListening()
+            rpcClient.StartListening()
 
-        let! response =
-            rpcClient.InvokeAsync<'TResult>(method, args) 
-            |> Async.AwaitTask
-            |> WithTimeout timeout
-            |> unwrapTimeout "RPC call timed out"
+            let! response =
+                rpcClient.InvokeAsync<'TResult>(method, args) 
+                |> Async.AwaitTask
+                |> WithTimeout timeout
 
-        rpcClient.Disconnected.RemoveHandler disconnectHandler
+            rpcClient.Disconnected.RemoveHandler disconnectHandler
 
-        return response
+            match response with
+            | Some value -> return value
+            | None -> return raise (TimeoutException "RPC call timed out")
+        with
+        | :? RemoteRpcException as exn ->
+            return raise <| CommunticationFailedException(exn.Message, exn)
+        | :? SocketException as exn ->
+            return raise <| CommunticationFailedException(exn.Message, exn)
     }
