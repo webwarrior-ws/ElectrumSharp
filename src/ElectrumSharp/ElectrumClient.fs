@@ -18,6 +18,8 @@ type BlockchainScriptHashListUnspentResult =
 
 type ElectrumClient (jsonRpcClient: JsonRpcTcpClient, timeout: TimeSpan) =
 
+    member self.Logger with set(logger: string -> unit) = jsonRpcClient.Logger <- logger
+
     member self.BlockchainScriptHashGetBalance (scriptHash: string): Async<BlockchainScriptHashGetBalanceResult> =
         jsonRpcClient.Request<BlockchainScriptHashGetBalanceResult> 
             "blockchain.scripthash.get_balance" 
