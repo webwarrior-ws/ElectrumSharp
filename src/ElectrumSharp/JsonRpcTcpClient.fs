@@ -32,24 +32,24 @@ type JsonRpcTcpClient (host: string, port: uint32) =
     member val Logger: string -> unit = Console.WriteLine with get, set
 
     member self.Request<'TResult> (method: string) (args: array<obj>) (timeout: TimeSpan): Async<'TResult> = async {
-        use tcpClient = new TcpClient()
-        do! tcpClient.ConnectAsync(host, int port) |> Async.AwaitTask
-
-        let networkStream = tcpClient.GetStream()
-        use formatter = new SystemTextJsonFormatter()
-        use handler = new NewLineDelimitedMessageHandler(networkStream, networkStream, formatter)
-        formatter.JsonSerializerOptions.PropertyNamingPolicy <- PascalCaseToSnakeCaseNamingPolicy()
-        use rpcClient = new JsonRpc(handler)
-
-        let disconnectHandler =
-            new EventHandler<JsonRpcDisconnectedEventArgs>(
-                fun  _ disconnectedEventArgs ->
-                    sprintf "Disconnected (Reason=%A): %s" 
-                        disconnectedEventArgs.Reason 
-                        disconnectedEventArgs.Description
-                    |> self.Logger)
-
         try
+            use tcpClient = new TcpClient()
+            do! tcpClient.ConnectAsync(host, int port) |> Async.AwaitTask
+
+            let networkStream = tcpClient.GetStream()
+            use formatter = new SystemTextJsonFormatter()
+            use handler = new NewLineDelimitedMessageHandler(networkStream, networkStream, formatter)
+            formatter.JsonSerializerOptions.PropertyNamingPolicy <- PascalCaseToSnakeCaseNamingPolicy()
+            use rpcClient = new JsonRpc(handler)
+
+            let disconnectHandler =
+                new EventHandler<JsonRpcDisconnectedEventArgs>(
+                    fun  _ disconnectedEventArgs ->
+                        sprintf "Disconnected (Reason=%A): %s" 
+                            disconnectedEventArgs.Reason 
+                            disconnectedEventArgs.Description
+                        |> self.Logger)
+        
             rpcClient.Disconnected.AddHandler disconnectHandler
 
             rpcClient.StartListening()
